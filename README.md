@@ -166,13 +166,7 @@ These served only as **benchmarks** to test whether FOMC sentiment added increme
 ---
 
 ### 2.6 Model Architecture Deep Dive  
-To understand how transformer-derived sentiment flows into our predictive system, we examine the two best-performing architectures: **CNN1D** and the **AutoencoderClassifier**. Both models operate on the 4-dimensional transformer sentiment vector:
-
-[positive_score, negative_score, neutral_score, paragraph_num]
-
-
-
-These features come directly from our transformer sentiment model and form the entire numerical representation of the statement’s tone.
+To understand how transformer-derived sentiment flows into our predictive system, we examine the two best-performing architectures: **CNN1D** and the **AutoencoderClassifier**. Both models operate on the 4-dimensional transformer sentiment vector as defined in section 2.2
 
 ---
 
@@ -210,7 +204,7 @@ This architecture extracted more nuanced sentiment patterns than simple linear m
 ## **B. AutoencoderClassifier — Latent Tone Representation (0.78 Accuracy)**  
 **Why an autoencoder?**  
 We hypothesized that sentiment tone may lie on a **low-dimensional manifold** — e.g., a single latent “hawkish–dovish” axis.  
-The autoencoder compresses the 4 sentiment features into an **8-dimensional latent space**, learns structure, then classifies from that space.
+The autoencoder maps the 4 sentiment features into an 8-dimensional latent space, encouraging the model to learn a structured ‘tone’ representation rather than relying on raw scores.
 
 **Architecture (from code):**
 
@@ -224,7 +218,7 @@ The autoencoder compresses the 4 sentiment features into an **8-dimensional late
 - 8 → 16 → 2
 
 **Why it worked well:**
-- Latent compression forces the network to extract **core sentiment direction**.  
+- The reconstruction objective forces the network to capture core sentiment structure in the latent space, rather than memorizing individual paragraphs. 
 - Regularization from the reconstruction objective prevents overfitting.  
 - The latent space clusters UP vs DOWN/FLAT months more cleanly.
 
@@ -524,7 +518,6 @@ We evaluate a simple long/flat strategy:
 - **Flat (0 exposure)** when ≤ 0  
 
 The chart below compares cumulative portfolio value (Jan–Jul 2025):
-can you
 
 **Observations:**
 
