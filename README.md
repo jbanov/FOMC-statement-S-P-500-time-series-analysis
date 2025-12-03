@@ -64,7 +64,7 @@ This project builds an end-to-end pipeline that connects **transformer models** 
 
 - We run each paragraph of every FOMC statement through a **transformer-based sentiment model** (FinBERT/LLM-style), extracting `positive`, `negative`, and `neutral` probabilities as **numerical features**.
 - These transformer-derived features are merged with S&P 500 monthly return “regimes” (five buckets from strongly negative to strongly positive) aligned to the *next* FOMC meeting month.
-- On top of the transformer features, we train several deep models (MLP, 1D-CNN, attention-augmented MLP, ResNet-style MLP, and an autoencoder classifier) to predict whether the next regime will be **up vs. down/flat**.
+- On top of the transformer features, we train several transformer based models (MLP, 1D-CNN, attention-augmented MLP, ResNet-style MLP, and an autoencoder classifier) to predict whether the next regime will be **up vs. down/flat**.
 - In parallel, we build a more traditional **time-series feature set** (past returns, volatility, momentum, simple macro controls) and run linear models / regressions to benchmark the incremental value of the transformer sentiment.
 
 **Research question.**  
@@ -101,27 +101,31 @@ This aligns the project with a forward-looking prediction task tied directly to 
 ---
 
 ### 2.2 Transformer-Based Sentiment Extraction
+<img width="2128" height="816" alt="image" src="https://github.com/user-attachments/assets/263bde00-5d93-49e8-b88a-b0758def691c" />
 
 Each paragraph is passed through a **transformer sentiment model** (FinBERT/LLM), producing:
 
 - `positive_score`  
 - `negative_score`  
 - `neutral_score`  
-- `paragraph_num`  
+- `paragraph_num`
+  
+BERT is a transformer-based encoder model that learns contextual word representations using self-attention, allowing it to understand meaning based on the full left and right context of a sentence. It is pre-trained on large corpora using Masked Language Modeling and Next Sentence Prediction, and then fine-tuned on specific downstream tasks such as sentiment classification. FinBERT (a financial-domain version of BERT) provides paragraph-level positive/negative/neutral sentiment scores, giving us rich, context-aware features that our deep models use to predict market direction.
 
 These **transformer-derived features** serve as the *only* inputs to our deep neural networks, forming the core representation of FOMC tone.
 
 ---
 
-### 2.3 Deep Learning Models on Transformer Features
+### 2.3 Transformer and Deep Learning Models on Transformer Features
 
-We trained five neural architectures on the transformer sentiment vectors:
+We trained six neural architectures on the transformer sentiment vectors:
 
 1. **MLP** – baseline dense network with BatchNorm + Dropout  
 2. **CNN1D** – temporal-style convolution over the sentiment feature vector  
 3. **AttentionMLP** – applies learned attention over the sentiment embedding  
 4. **ResNetMLP** – ResNet-style skip connections for stable training  
-5. **AutoencoderClassifier** – compresses tone into a low-dimensional latent code and classifies from it
+5. **Autoencoder Classifier** – compresses tone into a low-dimensional latent code and classifies from it
+6. **Transformer Classifier** – applies a lightweight transformer encoder over paragraph-wise sentiment tokens, using self-attention to model interactions across paragraphs before classification.
 
 Training details:
 - Train data: **2020–2024** (paragraph-level)  
@@ -153,19 +157,13 @@ This yields five interpretable model-based sentiment signals:
 - `AttentionMLP_score`  
 - `ResNetMLP_score`  
 - `AutoencoderClassifier_score`
+- `TransformerClassifier_score`
 
 These monthly scores serve as the **inputs to the backtesting and evaluation** phase.
 
 ---
 
-### 2.5 Baseline Statistical Modeling (for comparison)
-
-To contextualize the transformer-based pipeline, we built simple regressions using standard return-history features (1m/3m/6m returns, volatility).  
-These served only as **benchmarks** to test whether FOMC sentiment added incremental value.
-
----
-
-### 2.6 Model Architecture Deep Dive  
+### 2.5 Model Architecture Deep Dive  
 To understand how transformer-derived sentiment flows into our predictive system, we examine the two best-performing architectures: **CNN1D** and the **AutoencoderClassifier**. Both models operate on the 4-dimensional transformer sentiment vector as defined in section 2.2
 
 ---
@@ -230,44 +228,54 @@ The autoencoder appears to learn:
 
 This model provided the **most stable** month-level prediction scores.
 
+## **C. TransformerClassifier — Sequence-Aware Attention Modeling (0.77 Accuracy)**  
+**Why a transformer?**  
+We wanted a model capable of capturing **relationships between paragraphs** and the **overall trajectory of sentiment** across the FOMC statement.  
+Transformers use self-attention to model how each paragraph influences every other paragraph, enabling the network to detect tone shifts, pivots, and globally important sentences.
+
+**Architecture (from code):**
+
+**Embedding Layer (per paragraph):**
+- 4 → d_model  
+- LayerNorm  
+- ReLU  
+
+**Transformer Encoder (1–2 layers):**
+- Multi-Head Self-Attention (d_model, num_heads)  
+- Add & LayerNorm  
+- FeedForward: d_model → 2*d_model → d_model  
+- Add & LayerNorm  
+- Dropout = 0.1  
+
+**Classifier (after pooling):**
+- MeanPooling over paragraph embeddings  
+- d_model → 32 → 2  
+
+**Why it worked well:**
+- Self-attention captures **global tone patterns** across the entire statement.  
+- Learns which paragraphs are **most influential** for predicting next-month returns.  
+- Handles **variable-length** FOMC statements without altering the architecture.  
+- Residual connections and normalization stabilize training on a small dataset.
+
+**Interpretation:**  
+The transformer appears to learn:
+- A “tone progression curve” (e.g., hawkish → neutral → dovish) over the paragraphs  
+- Which sections of the statement drive market expectations (via attention weights)  
+- Interactions between sentiment magnitude and paragraph position  
+- Document-level structure that simpler models fail to capture  
+
+The transformer produced the **richest representation** of FOMC sentiment flow, but that did not translate to better performance.
+
 ---
 
-## **C. Why Transformers Matter in These Architectures**  
-Both of these deep models operate exclusively on **transformer-extracted sentiment**.  
-This means:
-
-\[
-\text{Transformer → Sentiment Embedding → Deep Model → Monthly Score}
-\]
-
-The transformer model provides:
-- A **learned semantic representation** of FOMC tone  
-- Probabilistic estimates grounded in financial text pretraining  
-- Structure that downstream models rely on to generalize
-
-Without transformer sentiment, MLP/CNN/Autoencoder models would only see raw text counts or bag-of-words features — far less expressive.
-
----
-
-## **D. Small-Data Strategy (Why These Models Didn’t Overfit)**  
-Even with small training size (380 paragraphs), both best-performing models avoided overfitting due to:
-
-- Dropout (0.3–0.4)  
-- BatchNorm  
-- Early stopping  
-- Class weighting  
-- Low-parameter architectures  
-- Sentiment features already regularized by the transformer model  
-
-The transformer effectively acts as a “feature extractor,” reducing the burden on downstream networks.
-
----
-
-## **E. Summary: What the Models Learned**
+## **C. Summary: What the Models Learned**
 - CNN1D learns **interactions** between sentiment channels (positive/negative/neutral × paragraph index).  
 - AutoencoderClassifier learns a **latent tone representation**, smoothing out noise in raw sentiment.  
-- Both models agree ~80% of the time with actual monthly S&P direction after aggregation.  
+- TransformerClassifier learns **paragraph-to-paragraph dependencies** and the **overall trajectory of hawkish/dovish tone**, highlighting which sections most influence the predicted direction.  
+- All models agree ~80% of the time with actual monthly S&P direction after aggregation.  
 - Transformer features were **essential** — no deep model had any chance of learning from raw text alone in such a small dataset.
+- As models became more complex, predictions and classifications did not improve  
+
 
 ## 3. Implementation & Demo
 
@@ -319,7 +327,8 @@ Transformers provide the **core semantic representation** for all downstream mod
   - **CNN1D**  
   - **AttentionMLP**  
   - **ResNetMLP**  
-  - **AutoencoderClassifier**  
+  - **AutoencoderClassifier**
+  - **TransformerClassifier**  
 - Uses:
   - class-weighted loss  
   - validation-based early stopping  
@@ -478,6 +487,7 @@ Each model ingests **only transformer-derived sentiment features**, testing whet
 |-------------------------|---------|----------------|-------|
 | **CNN1D**               | 0.658   | **0.800**      | Best directional classifier |
 | **AutoencoderClassifier** | 0.658 | **0.780**      | Strong latent representation |
+| **TransformerClassifier** | 0.658   | **0.740**      | Best directional classifier |
 | **ResNetMLP**           | 0.645   | 0.720          | Stable, lightweight |
 | **MLP**                 | 0.645   | 0.700          | Solid but less expressive |
 | **AttentionMLP**        | 0.553   | 0.560          | Highly variable |
@@ -501,16 +511,18 @@ This supports the idea that **transformer sentiment is contemporaneously informa
 ---
 
 ### 4.3 Backtesting: Model Strategies vs SP500 Buy-and-Hold
-<img width="1389" height="690" alt="image" src="https://github.com/user-attachments/assets/4be425cc-5510-47aa-894b-9e8721d088f5" />
+<img width="1389" height="690" alt="image" src="https://github.com/user-attachments/assets/acd290e0-77ea-4c55-9466-21f9aacec9c7" />
+
 ### Model Backtest Portfolio Values (2025)
 
-| Period   | MLP_score | CNN1D_score | AttentionMLP_score | ResNetMLP_score | AutoencoderClassifier_score |
-|----------|-----------|-------------|---------------------|------------------|------------------------------|
-| 2025-01  | 99.64     | 98.93       | 100.00              | 99.64            | 98.58                       |
-| 2025-02  | 93.91     | 93.24       | 98.56               | 93.91            | 92.90                       |
-| 2025-05  | 96.24     | 97.86       | 98.56               | 96.24            | 97.51                       |
-| 2025-06  | 97.28     | 99.98       | 99.10               | 97.28            | 99.62                       |
-| 2025-07  | 97.75     | 101.89      | 99.57               | 98.21            | 101.52                      |
+| Period   | MLP_score | CNN1D_score | AttentionMLP_score | ResNetMLP_score | AutoencoderClassifier_score | TransformerClassifier_score |
+|----------|-----------|-------------|---------------------|------------------|------------------------------|------------------------------|
+| 2025-01  | 99.64     | 98.93       | 100.00              | 99.64            | 98.58                       | 98.58                       |
+| 2025-02  | 93.91     | 93.24       | 98.56               | 93.91            | 92.90                       | 92.90                       |
+| 2025-05  | 96.24     | 97.86       | 98.56               | 96.24            | 97.51                       | 97.51                       |
+| 2025-06  | 97.28     | 99.98       | 99.10               | 97.28            | 99.62                       | 99.62                       |
+| 2025-07  | 97.75     | 101.89      | 99.57               | 98.21            | 101.52                      | 101.52                      |
+
 
 We evaluate a simple long/flat strategy:
 
