@@ -1,6 +1,6 @@
-year_month,statement_date,DATE,actual_score,MLP_score,CNN1D_score,AttentionMLP_score,ResNetMLP_score,AutoencoderClassifier_score,n_paragraphs
-2025-01,Jan2025,2025-01-31,-11,5,9,-1,5,11,11
-2025-02,Feb2025,2025-02-28,9,9,9,1,9,9,9
-2025-05,May2025,2025-05-31,10,6,10,-2,6,10,10
-2025-06,June2025,2025-06-30,10,6,10,2,6,10,10
-2025-07,July2025,2025-07-31,10,4,10,4,6,10,10
+year_month,statement_date,DATE,actual_score,n_paragraphs,MLP_score,CNN1D_score,AttentionMLP_score,ResNetMLP_score,AutoencoderClassifier_score,TransformerClassifier_score
+2025-01,Jan2025,2025-01-31,-11,11,9,9,5,7,9,9
+2025-02,Feb2025,2025-02-28,9,9,9,9,7,9,9,9
+2025-05,May2025,2025-05-31,10,10,10,10,6,8,10,10
+2025-06,June2025,2025-06-30,10,10,10,10,6,8,10,10
+2025-07,July2025,2025-07-31,10,10,8,8,6,8,10,10
