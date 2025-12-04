@@ -231,6 +231,8 @@ This model provided the **most stable** month-level prediction scores.
 
 ## **C. TransformerClassifier — Sequence-Aware Attention Modeling (0.77 Accuracy)**  
 ```
+       class TransformerClassifier(nn.Module):
+    def __init__(self, input_dim, n_classes, d_model=64, nhead=4, num_layers=2, dropout=0.3):
         super(TransformerClassifier, self).__init__()
 
         # Project input to d_model dimension
