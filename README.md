@@ -84,6 +84,7 @@ Our pipeline integrates transformer-based NLP with deep learning and simple retu
 ---
 
 ### 2.1 Data Collection & Event Alignment
+<img width="771" height="723" alt="Screenshot 2025-12-04 at 5 45 59 AM" src="https://github.com/user-attachments/assets/22430531-a492-4a8f-8315-aa3013d65fde" />
 
 **FOMC Statements.**  
 We collected the text of every FOMC policy statement (2020–2025). Each statement was split into paragraphs for fine-grained sentiment extraction.
@@ -150,7 +151,7 @@ $$
 \text{monthly score} = \sum_{\text{paragraphs}} \text{signed prediction}
 $$
 
-This yields five interpretable model-based sentiment signals:
+This yields six interpretable model-based sentiment signals:
 
 - `MLP_score`  
 - `CNN1D_score`  
@@ -164,7 +165,7 @@ These monthly scores serve as the **inputs to the backtesting and evaluation** p
 ---
 
 ### 2.5 Model Architecture Deep Dive  
-To understand how transformer-derived sentiment flows into our predictive system, we examine the two best-performing architectures: **CNN1D** and the **AutoencoderClassifier**. Both models operate on the 4-dimensional transformer sentiment vector as defined in section 2.2
+To understand how transformer-derived sentiment flows into our predictive system, we examine our best-performing architectures: **CNN1D**, **AutoencoderClassifier**, and **TransformerClassifier**. Both models operate on the 4-dimensional transformer sentiment vector as defined in section 2.2
 
 ---
 
