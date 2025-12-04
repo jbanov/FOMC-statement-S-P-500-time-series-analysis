@@ -237,7 +237,7 @@ Transformers use self-attention to model how each paragraph influences every oth
 **Architecture (from code):**
 
 **Embedding Layer (per paragraph):**
-- 4 → d_model  
+- 4 → d_model (64)
 - LayerNorm  
 - ReLU  
 
