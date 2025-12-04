@@ -230,6 +230,35 @@ The autoencoder appears to learn:
 This model provided the **most stable** month-level prediction scores.
 
 ## **C. TransformerClassifier — Sequence-Aware Attention Modeling (0.77 Accuracy)**  
+```
+        super(TransformerClassifier, self).__init__()
+
+        # Project input to d_model dimension
+        self.input_projection = nn.Linear(input_dim, d_model)
+
+        # Positional encoding (learnable)
+        self.pos_embedding = nn.Parameter(torch.randn(1, 1, d_model))
+
+        # Transformer encoder
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=d_model,
+            nhead=nhead,
+            dim_feedforward=d_model * 4,
+            dropout=dropout,
+            batch_first=True
+        )
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+        # Classification head
+        self.classifier = nn.Sequential(
+            nn.Linear(d_model, d_model // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(d_model // 2, n_classes)
+        )
+
+        self.dropout = nn.Dropout(dropout)
+```
 **Why a transformer?**  
 We wanted a model capable of capturing **relationships between paragraphs** and the **overall trajectory of sentiment** across the FOMC statement.  
 Transformers use self-attention to model how each paragraph influences every other paragraph, enabling the network to detect tone shifts, pivots, and globally important sentences.
